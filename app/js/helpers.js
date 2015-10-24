@@ -1,5 +1,3 @@
-"use strict";
-
 export function isBoolean(arg) {
   return typeof arg === 'boolean';
 }
@@ -20,16 +18,6 @@ export function sequence(...fns) {
   };
 };
 
-export function propGetter(path) {
-  const props = path.split('.');
-  return function(target) {
-    let res = target;
-    for (var i = 0; i < props.length; i++) {
-      if(!target) 
-        target = target[props[i]];
-      else
-        return;
-    }
-    return target;
-  }
-}
+export function target_checked(e) {
+  return e.target.checked;
+};

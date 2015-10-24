@@ -1,5 +1,23 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-"use strict";
+'use strict';
+
+var snabbdom = require('snabbdom');
+var patch = snabbdom.init([require('snabbdom/modules/class'), require('snabbdom/modules/props'), require('snabbdom/modules/style'), require('snabbdom/modules/eventlisteners'), require('./snabbdom-modules/window-events')]);
+
+function main(initState, oldVnode, _ref) {
+  var view = _ref.view;
+  var update = _ref.update;
+  var newVnode = view(initState, function (e) {
+    var newState = update(initState, e);
+    main(newState, newVnode, { view: view, update: update });
+  });
+  patch(oldVnode, newVnode);
+}
+
+module.exports = { main: main };
+
+},{"./snabbdom-modules/window-events":4,"snabbdom":13,"snabbdom/modules/class":9,"snabbdom/modules/eventlisteners":10,"snabbdom/modules/props":11,"snabbdom/modules/style":12}],2:[function(require,module,exports){
+'use strict';
 
 Object.defineProperty(exports, '__esModule', {
   value: true
@@ -7,7 +25,7 @@ Object.defineProperty(exports, '__esModule', {
 exports.isBoolean = isBoolean;
 exports.bind = bind;
 exports.sequence = sequence;
-exports.propGetter = propGetter;
+exports.target_checked = target_checked;
 
 function isBoolean(arg) {
   return typeof arg === 'boolean';
@@ -45,53 +63,21 @@ function sequence() {
 
 ;
 
-function propGetter(path) {
-  var props = path.split('.');
-  return function (target) {
-    var res = target;
-    for (var i = 0; i < props.length; i++) {
-      if (!target) target = target[props[i]];else return;
-    }
-    return target;
-  };
+function target_checked(e) {
+  return e.target.checked;
 }
 
-},{}],2:[function(require,module,exports){
-"use strict";
+;
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+},{}],3:[function(require,module,exports){
+'use strict';
 
-var _snabbdom = require('snabbdom');
+var boilerplate = require('./boilerplate');
 
-var _snabbdom2 = _interopRequireDefault(_snabbdom);
+var todos = require('./todos');
+boilerplate.main(todos.init(), document.querySelector('#todoapp'), todos);
 
-var _todos = require('./todos');
-
-var _todos2 = _interopRequireDefault(_todos);
-
-var patch = _snabbdom2['default'].init([require('snabbdom/modules/class'), // makes it easy to toggle classes
-require('snabbdom/modules/props'), // for setting properties on DOM elements
-require('snabbdom/modules/style'), // handles styling on elements with support for animations
-require('snabbdom/modules/eventlisteners'), // attaches event listeners
-require('./snabbdom-modules/window-events') // attaches event listeners to windows
-]);
-
-function main(initState, oldVnode, _ref) {
-  var view = _ref.view;
-  var update = _ref.update;
-
-  var newVnode = view(initState, function (e) {
-    var newState = update(initState, e);
-    main(newState, newVnode, { view: view, update: update });
-  });
-  patch(oldVnode, newVnode);
-}
-
-var state = _todos2['default'].init();
-
-main(state, document.querySelector('.todoapp'), _todos2['default']);
-
-},{"./snabbdom-modules/window-events":3,"./todos":5,"snabbdom":12,"snabbdom/modules/class":8,"snabbdom/modules/eventlisteners":9,"snabbdom/modules/props":10,"snabbdom/modules/style":11}],3:[function(require,module,exports){
+},{"./boilerplate":1,"./todos":6}],4:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -111,101 +97,64 @@ function updateWindowEvents(oldVnode, vnode) {
 exports["default"] = { create: updateWindowEvents, update: updateWindowEvents };
 module.exports = exports["default"];
 
-},{"snabbdom/modules/eventlisteners":9}],4:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, '__esModule', {
-  value: true
-});
+},{"snabbdom/modules/eventlisteners":10}],5:[function(require,module,exports){
+'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+var h = require('snabbdom/h');
+var Type = require('union-type');
+var helpers = require('./helpers');
+var bind = helpers.bind;
+var sequence = helpers.sequence;
+var isBoolean = helpers.isBoolean;
+var target_checked = helpers.target_checked;
 
-var _snabbdomH = require('snabbdom/h');
+// Model: {id: Number, title: String, done: Boolean, editing: Boolean, editing_value: String}
+function init(id, title) {
+  return { 'id': id, 'title': title, 'done': false, 'editing': false, 'editing_value': '' };
+}
 
-var _snabbdomH2 = _interopRequireDefault(_snabbdomH);
-
-var _unionType = require('union-type');
-
-var _unionType2 = _interopRequireDefault(_unionType);
-
-var _helpers = require('./helpers');
-
-var KEY_ENTER = 13;
-
-// model : {id: Number, title: String, done: Boolean, editing: Boolean, editingValue: String }
-var Action = (0, _unionType2['default'])({
+// Update(s)
+var Action = Type({
   SetTitle: [String],
-  Toggle: [_helpers.isBoolean],
+  Toggle: [isBoolean],
   StartEdit: [],
   CommitEdit: [String],
   CancelEdit: []
 });
 
-var targetChecked = function targetChecked(e) {
-  return e.target.checked;
-};
-var targetValue = function targetValue(e) {
-  return e.target.value;
-};
-
-function onInput(handler, e) {
-  if (e.keyCode === KEY_ENTER) handler(Action.CommitEdit(e.target.value));
-}
-
-function view(task, handler, remove) {
-  return (0, _snabbdomH2['default'])('li', {
-    'class': { completed: !!task.done && !task.editing, editing: task.editing },
-    key: task.id
-  }, [(0, _snabbdomH2['default'])('div.view', [(0, _snabbdomH2['default'])('input.toggle', {
-    props: { checked: !!task.done, type: 'checkbox' },
-    on: {
-      click: (0, _helpers.sequence)(targetChecked, Action.Toggle, handler)
-    }
-  }), (0, _snabbdomH2['default'])('label', {
-    on: {
-      dblclick: (0, _helpers.bind)(handler, Action.StartEdit())
-    }
-  }, task.title), (0, _snabbdomH2['default'])('button.destroy', {
-    on: {
-      click: (0, _helpers.bind)(remove, task.id)
-    }
-  })]), (0, _snabbdomH2['default'])('input.edit', {
-    props: { value: task.title },
-    on: {
-      blur: (0, _helpers.bind)(handler, Action.CancelEdit()),
-      keydown: (0, _helpers.bind)(onInput, handler)
-    }
-  })]);
-}
-
-function init(id, title) {
-  return { id: id, title: title, done: false, editing: false, editingValue: '' };
-}
-
-function update(task, action) {
+function update(model, action) {
   return Action['case']({
     Toggle: function Toggle(done) {
-      return _extends({}, task, { done: done });
+      return _extends({}, model, { done: done });
     },
     StartEdit: function StartEdit() {
-      return _extends({}, task, { editing: true, editingValue: task.title });
+      return _extends({}, model, { editing: true, editing_value: '' });
     },
     CommitEdit: function CommitEdit(title) {
-      return _extends({}, task, { title: title, editing: false, editingValue: '' });
+      return _extends({}, model, { title: title, editing: false, editing_value: '' });
     },
     CancelEdit: function CancelEdit(title) {
-      return _extends({}, task, { editing: false, editingValue: '' });
+      return _extends({}, model, { editing: false, editing_value: '' });
     }
   }, action);
 }
 
-exports['default'] = { view: view, init: init, update: update, Action: Action };
-module.exports = exports['default'];
+// View
+function view(task, handler, remove) {
+  return h('li', { 'class': { completed: !!task.done && !task.editing, editing: task.editing }, key: task.id }, [h('div.view', [h('input.toggle', { props: { checked: !!task.done, type: 'checkbox' }, on: { click: sequence(target_checked, Action.Toggle, handler) } }), h('label', { on: { dblclick: bind(handler, Action.StartEdit()) } }, task.title), h('button.destroy', { on: { click: bind(remove, task.id) } })]), h('input.edit', { props: { value: task.title }, on: { blur: bind(handler, Action.CancelEdit()), keydown: bind(onInput, handler) } })]);
+}
 
-},{"./helpers":1,"snabbdom/h":6,"union-type":19}],5:[function(require,module,exports){
-"use strict";
+function onInput(handler, e) {
+  if (e.keyCode == 13) handler(Action.CommitEdit(e.target.value));
+}
+
+// Export
+module.exports = { init: init, Action: Action, update: update, view: view };
+
+},{"./helpers":2,"snabbdom/h":7,"union-type":20}],6:[function(require,module,exports){
+'use strict';
 
 Object.defineProperty(exports, '__esModule', {
   value: true
@@ -213,87 +162,20 @@ Object.defineProperty(exports, '__esModule', {
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
 
-var _snabbdomH = require('snabbdom/h');
+var h = require('snabbdom/h');
+var Type = require('union-type');
+var helpers = require('./helpers');
+var bind = helpers.bind;
+var sequence = helpers.sequence;
+var isBoolean = helpers.isBoolean;
+var target_checked = helpers.target_checked;
+var task = require('./task');
 
-var _snabbdomH2 = _interopRequireDefault(_snabbdomH);
-
-var _unionType = require('union-type');
-
-var _unionType2 = _interopRequireDefault(_unionType);
-
-var _helpers = require('./helpers');
-
-var _task = require('./task');
-
-var _task2 = _interopRequireDefault(_task);
-
-var KEY_ENTER = 13;
-
-// model : { nextID: Number, editingTitle: String, tasks: [task.model], filter: String }
-var Action = (0, _unionType2['default'])({
-  Add: [String],
-  Remove: [Number],
-  Archive: [],
-  ToggleAll: [_helpers.isBoolean],
-  Filter: [String],
-  Modify: [Number, _task2['default'].Action]
-});
-
-var targetChecked = function targetChecked(e) {
-  return e.target.checked;
-};
-var targetValue = function targetValue(e) {
-  return e.target.value;
-};
-
-function onInput(handler, e) {
-  if (e.keyCode === KEY_ENTER) {
-    handler(Action.Add(e.target.value));
-  }
-}
-
-function view(model, handler) {
-
-  var remaining = remainingTodos(model.tasks);
-  var filtered = filteredTodos(model.tasks, model.filter);
-
-  return (0, _snabbdomH2['default'])('section.todoapp', {
-    windowOn: { hashchange: function hashchange(_) {
-        return handler(Action.Filter(window.location.hash.substr(2) || 'all'));
-      } },
-    on: { click: function click() {
-        return console.log('clicked');
-      } }
-  }, [(0, _snabbdomH2['default'])('header.header', [(0, _snabbdomH2['default'])('h1', 'todos'), (0, _snabbdomH2['default'])('input#new-todo.new-todo', {
-    props: { placeholder: 'What needs to be done?', value: model.editingTitle },
-    on: { keydown: (0, _helpers.bind)(onInput, handler) }
-  })]), (0, _snabbdomH2['default'])('section.main', {
-    style: { display: model.tasks.length ? 'block' : 'none' }
-  }, [(0, _snabbdomH2['default'])('input.toggle-all', {
-    props: { type: 'checkbox', checked: remaining === 0 },
-    on: {
-      click: (0, _helpers.sequence)(targetChecked, Action.ToggleAll, handler)
-    }
-  }), (0, _snabbdomH2['default'])('ul.todo-list', filtered.map(function (todo) {
-    return _task2['default'].view(todo, function (action) {
-      return handler(Action.Modify(todo.id, action));
-    }, function (id) {
-      return handler(Action.Remove(id));
-    });
-  }))]), (0, _snabbdomH2['default'])('footer.footer', {
-    style: { display: model.tasks.length ? 'block' : 'none' }
-  }, [(0, _snabbdomH2['default'])('span.todo-count', [(0, _snabbdomH2['default'])('strong', remaining), ' item' + (remaining === 1 ? '' : 's') + ' left']), (0, _snabbdomH2['default'])('ul.filters', [(0, _snabbdomH2['default'])('li', [(0, _snabbdomH2['default'])('a', { 'class': { selected: model.filter === 'all' }, props: { href: '#/' } }, 'All')]), (0, _snabbdomH2['default'])('li', [(0, _snabbdomH2['default'])('a', { 'class': { selected: model.filter === 'active' }, props: { href: '#/active' } }, 'Active')]), (0, _snabbdomH2['default'])('li', [(0, _snabbdomH2['default'])('a', { 'class': { selected: model.filter === 'completed' }, props: { href: '#/completed' } }, 'Completed')])]), (0, _snabbdomH2['default'])('button.clear-completed', {
-    on: { click: (0, _helpers.bind)(handler, Action.Archive()) }
-  }, 'Clear completed')])]);
-}
-
-function init() {
-  var tasks = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
-
+// Model {nextID: Number, editingTitle: String, tasks: [task.model], filter: String }
+function init(tasks) {
+  var tasks = tasks || [];
   return {
     nextID: tasks.reduce(function (acc, task) {
       return Math.max(acc, task.id);
@@ -303,60 +185,15 @@ function init() {
     filter: 'all'
   };
 }
-
-function remainingTodos(tasks) {
-  return tasks.reduce(function (acc, task) {
-    return !task.done ? acc + 1 : acc;
-  }, 0);
-}
-
-function filteredTodos(tasks, filter) {
-  return filter === 'completed' ? tasks.filter(function (todo) {
-    return todo.done;
-  }) : filter === 'active' ? tasks.filter(function (todo) {
-    return !todo.done;
-  }) : tasks;
-}
-
-function addTodo(model, title) {
-  return _extends({}, model, {
-    tasks: [].concat(_toConsumableArray(model.tasks), [_task2['default'].init(model.nextID, title)]),
-    editingTitle: '',
-    nextID: model.nextID + 1
-  });
-}
-
-function removeTodo(model, id) {
-  return _extends({}, model, {
-    tasks: model.tasks.filter(function (taskModel) {
-      return taskModel.id !== id;
-    })
-  });
-}
-
-function archiveTodos(model, id) {
-  return _extends({}, model, {
-    tasks: model.tasks.filter(function (taskModel) {
-      return !taskModel.done;
-    })
-  });
-}
-
-function toggleAll(model, done) {
-  return _extends({}, model, {
-    tasks: model.tasks.map(function (taskModel) {
-      return _task2['default'].update(taskModel, _task2['default'].Action.Toggle(done));
-    })
-  });
-}
-
-function modifyTodo(model, id, action) {
-  return _extends({}, model, {
-    tasks: model.tasks.map(function (taskModel) {
-      return taskModel.id !== id ? taskModel : _task2['default'].update(taskModel, action);
-    })
-  });
-}
+// Update(s)
+var Action = Type({
+  Add: [String],
+  Remove: [Number],
+  Archive: [],
+  ToggleAll: [isBoolean],
+  Filter: [String],
+  Modify: [Number, task.Action]
+});
 
 function update(model, action) {
   return Action['case']({
@@ -381,10 +218,101 @@ function update(model, action) {
   }, action);
 }
 
-exports['default'] = { view: view, init: init, update: update, Action: Action };
+function addTodo(model, title) {
+  return _extends({}, model, {
+    tasks: [].concat(_toConsumableArray(model.tasks), [task.init(model.nextID, title)]),
+    editingTitle: '',
+    nextID: model.nextID + 1
+  });
+}
+
+function removeTodo(model, id) {
+  return _extends({}, model, { tasks: model.tasks.filter(function (taskModel) {
+      return taskModel.id != id;
+    }) });
+}
+
+function archiveTodos(model, id) {
+  return _extends({}, model, { tasks: model.tasks.filter(function (taskModel) {
+      return !taskModel.done;
+    }) });
+}
+
+function toggleAll(model, done) {
+  return _extends({}, model, { tasks: model.tasks.map(function (taskModel) {
+      return task.update(taskModel, task.Action.Toggle(done));
+    }) });
+}
+
+function remainingTodos(tasks) {
+  return tasks.reduce(function (acc, task) {
+    return !task.done ? acc + 1 : acc;
+  }, 0);
+}
+
+function filteredTodos(tasks, filter) {
+  return filter === 'completed' ? tasks.filter(function (todo) {
+    return todo.done;
+  }) : filter === 'active' ? tasks.filter(function (todo) {
+    return !todo.done;
+  }) : tasks;
+}
+
+function modifyTodo(model, id, action) {
+  return _extends({}, model, { tasks: model.tasks.map(function (taskModel) {
+      return taskModel.id !== id ? taskModel : task.update(taskModel, action);
+    }) });
+}
+
+// View
+function view(model, handler) {
+  var remaining = remainingTodos(model.tasks);
+  var filtered = filteredTodos(model.tasks, model.filter);
+  return h('section.todoapp', {
+    windowOn: { hashchange: function hashchange(_) {
+        return handler(Action.Filter(window.location.hash.substr(2) || 'all'));
+      } },
+    on: { click: function click() {
+        return console.log('clicked');
+      } }
+  }, [h('header.header', [h('h1', 'todos'), h('input#new-todo.new-todo', {
+    props: { placeholder: 'What needs to be done?', value: model.editingTitle },
+    on: { keydown: bind(onInput, handler) }
+  })]), h('section.main', { style: { display: model.tasks.length ? 'block' : 'none' } }, [h('input.toggle-all', {
+    props: { type: 'checkbox', checked: remaining === 0 },
+    on: { click: sequence(target_checked, Action.ToggleAll, handler) }
+  }), h('ul.todo-list', filtered.map(function (todo) {
+    return task.view(todo, function (action) {
+      return handler(Action.Modify(todo.id, action));
+    }, function (id) {
+      return handler(Action.Remove(id));
+    });
+  }))]), h('footer.footer', {
+    style: { display: model.tasks.length ? 'block' : 'none' }
+  }, [h('span.todo-count', [h('strong', remaining), ' item' + (remaining === 1 ? '' : 's') + ' left']), h('ul.filters', [h('li', [h('a', { 'class': { selected: model.filter === 'all' }, props: { href: '#/' } }, 'All')]), h('li', [h('a', { 'class': { selected: model.filter === 'active' }, props: { href: '#/active' } }, 'Active')]), h('li', [h('a', { 'class': { selected: model.filter === 'completed' }, props: { href: '#/completed' } }, 'Completed')])]), h('button.clear-completed', {
+    on: { click: bind(handler, Action.Archive()) }
+  }, 'Clear completed')])]);
+}
+
+// Helpers
+var target_checked = function target_checked(e) {
+  return e.target.checked;
+};
+
+var target_value = function target_value(e) {
+  return e.target.value;
+};
+
+function onInput(handler, e) {
+  if (e.keyCode === 13) {
+    handler(Action.Add(e.target.value));
+  }
+}
+
+exports['default'] = { init: init, Action: Action, update: update, view: view };
 module.exports = exports['default'];
 
-},{"./helpers":1,"./task":4,"snabbdom/h":6,"union-type":19}],6:[function(require,module,exports){
+},{"./helpers":2,"./task":5,"snabbdom/h":7,"union-type":20}],7:[function(require,module,exports){
 var VNode = require('./vnode');
 var is = require('./is');
 
@@ -407,13 +335,13 @@ module.exports = function h(sel, b, c) {
   return VNode(sel, data, children, text, undefined);
 };
 
-},{"./is":7,"./vnode":13}],7:[function(require,module,exports){
+},{"./is":8,"./vnode":14}],8:[function(require,module,exports){
 module.exports = {
   array: Array.isArray,
   primitive: function(s) { return typeof s === 'string' || typeof s === 'number'; },
 };
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 function updateClass(oldVnode, vnode) {
   var cur, name, elm = vnode.elm,
       oldClass = oldVnode.data.class || {},
@@ -428,7 +356,7 @@ function updateClass(oldVnode, vnode) {
 
 module.exports = {create: updateClass, update: updateClass};
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var is = require('../is');
 
 function arrInvoker(arr) {
@@ -471,7 +399,7 @@ function updateEventListeners(oldVnode, vnode) {
 
 module.exports = {create: updateEventListeners, update: updateEventListeners};
 
-},{"../is":7}],10:[function(require,module,exports){
+},{"../is":8}],11:[function(require,module,exports){
 function updateProps(oldVnode, vnode) {
   var key, cur, old, elm = vnode.elm,
       oldProps = oldVnode.data.props || {}, props = vnode.data.props || {};
@@ -486,7 +414,7 @@ function updateProps(oldVnode, vnode) {
 
 module.exports = {create: updateProps, update: updateProps};
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var raf = requestAnimationFrame || setTimeout;
 var nextFrame = function(fn) { raf(function() { raf(fn); }); };
 
@@ -547,7 +475,7 @@ function applyRemoveStyle(vnode, rm) {
 
 module.exports = {create: updateStyle, update: updateStyle, destroy: applyDestroyStyle, remove: applyRemoveStyle};
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 // jshint newcap: false
 /* global require, module, document, Element */
 'use strict';
@@ -782,14 +710,14 @@ function init(modules) {
 
 module.exports = {init: init};
 
-},{"./is":7,"./vnode":13}],13:[function(require,module,exports){
+},{"./is":8,"./vnode":14}],14:[function(require,module,exports){
 module.exports = function(sel, data, children, text, elm) {
   var key = data === undefined ? undefined : data.key;
   return {sel: sel, data: data, children: children,
           text: text, elm: elm, key: key};
 };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 var _curry2 = require('./internal/_curry2');
 
 
@@ -838,7 +766,7 @@ module.exports = _curry2(function(n, fn) {
   }
 });
 
-},{"./internal/_curry2":17}],15:[function(require,module,exports){
+},{"./internal/_curry2":18}],16:[function(require,module,exports){
 var _curry2 = require('./internal/_curry2');
 var _curryN = require('./internal/_curryN');
 var arity = require('./arity');
@@ -891,7 +819,7 @@ module.exports = _curry2(function curryN(length, fn) {
   return arity(length, _curryN(length, [], fn));
 });
 
-},{"./arity":14,"./internal/_curry2":17,"./internal/_curryN":18}],16:[function(require,module,exports){
+},{"./arity":15,"./internal/_curry2":18,"./internal/_curryN":19}],17:[function(require,module,exports){
 /**
  * Optimized internal two-arity curry function.
  *
@@ -912,7 +840,7 @@ module.exports = function _curry1(fn) {
   };
 };
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 var _curry1 = require('./_curry1');
 
 
@@ -946,7 +874,7 @@ module.exports = function _curry2(fn) {
   };
 };
 
-},{"./_curry1":16}],18:[function(require,module,exports){
+},{"./_curry1":17}],19:[function(require,module,exports){
 var arity = require('../arity');
 
 
@@ -986,7 +914,7 @@ module.exports = function _curryN(length, received, fn) {
   };
 };
 
-},{"../arity":14}],19:[function(require,module,exports){
+},{"../arity":15}],20:[function(require,module,exports){
 var curryN = require('ramda/src/curryN');
 
 function isString(s) { return typeof s === 'string'; }
@@ -1056,4 +984,4 @@ function Type(desc) {
 
 module.exports = Type;
 
-},{"ramda/src/curryN":15}]},{},[2]);
+},{"ramda/src/curryN":16}]},{},[3]);

@@ -1,76 +1,50 @@
-"use strict";
+var h = require('snabbdom/h');
+var Type = require('union-type');
+var helpers = require('./helpers');
+var bind = helpers.bind;
+var sequence = helpers.sequence;
+var isBoolean = helpers.isBoolean;
+var target_checked = helpers.target_checked;
 
-import h from 'snabbdom/h';
-import Type from 'union-type';
-import { bind, sequence, isBoolean }  from './helpers';
+// Model: {id: Number, title: String, done: Boolean, editing: Boolean, editing_value: String}
+function init(id, title) {
+  return {'id': id, 'title': title, 'done': false, 'editing': false, 'editing_value': ''};
+}
 
-const KEY_ENTER = 13;
-
-// model : {id: Number, title: String, done: Boolean, editing: Boolean, editingValue: String }
-const Action = Type({
-  SetTitle      : [String],
-  Toggle        : [isBoolean],
-  StartEdit     : [],
-  CommitEdit    : [String],
-  CancelEdit    : []
+// Update(s)
+var Action = Type({
+  SetTitle: [String],
+  Toggle: [isBoolean],
+  StartEdit: [],
+  CommitEdit: [String],
+  CancelEdit: []
 });
 
-const targetChecked = e => e.target.checked;
-const targetValue = e => e.target.value;
-
-function onInput(handler, e) {
-  if(e.keyCode === KEY_ENTER)
-    handler(Action.CommitEdit(e.target.value))
-}
-
-function view(task, handler, remove) {
-  return h('li', {
-    class: {completed: !!task.done && !task.editing, editing: task.editing},
-    key: task.id,
-  }, [
-    h('div.view', [
-      h('input.toggle', {
-        props: {checked: !!task.done, type: 'checkbox'},
-        on: {
-          click: sequence(targetChecked, Action.Toggle, handler)
-        },
-      }),
-      
-      h('label', {
-        on: { 
-          dblclick: bind(handler, Action.StartEdit()) 
-        }
-      }, task.title ),
-      
-      h('button.destroy', {
-        on: {
-          click: bind(remove, task.id)
-        }
-      })
-      
-    ]),
-    
-    h('input.edit', {
-      props: { value: task.title },
-      on: {
-        blur: bind(handler, Action.CancelEdit()),
-        keydown: bind(onInput, handler),
-      }
-    })
-  ]);
-}
-
-function init(id, title) {
-  return { id, title, done: false, editing: false, editingValue: '' };
-}
-
-function update(task, action) {
+function update(model, action) {
   return Action.case({
-    Toggle      : done  => ({...task, done}),
-    StartEdit   : () => ({...task, editing: true, editingValue: task.title}),
-    CommitEdit  : title => ({...task, title, editing: false,  editingValue: ''}),
-    CancelEdit  : title => ({...task, editing: false,  editingValue: ''})
+    Toggle: done => ({...model, done}),
+    StartEdit: () => ({...model, editing: true, editing_value: ''}),
+    CommitEdit: title => ({...model, title, editing: false, editing_value: ''}),
+    CancelEdit: title => ({...model, editing: false, editing_value: ''})
   }, action);
 }
 
-export default { view, init, update, Action }
+// View
+function view(task, handler, remove) {
+  return h('li', {class: {completed: !!task.done && !task.editing, editing: task.editing}, key: task.id}, [
+    h('div.view', [
+      h('input.toggle', {props: {checked: !!task.done, type: 'checkbox'}, on: {click: sequence(target_checked, Action.Toggle, handler)}, }),
+      h('label', {on: {dblclick: bind(handler, Action.StartEdit())}}, task.title ),
+      h('button.destroy', {on: {click: bind(remove, task.id) }})
+    ]),
+    h('input.edit', {props: {value: task.title}, on: {blur: bind(handler, Action.CancelEdit()), keydown: bind(onInput, handler), }})
+  ]);
+}
+
+function onInput(handler, e) {
+  if(e.keyCode == 13)
+    handler(Action.CommitEdit(e.target.value))
+}
+
+// Export
+module.exports = {init, Action, update, view};
